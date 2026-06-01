@@ -1,3 +1,4 @@
+'''
 ---
 title: 'Release of Tailwind Nextjs Starter Blog v2.0'
 date: '2023-08-05'
@@ -190,3 +191,86 @@ Using the template? Support this effort by giving a star on GitHub, sharing your
 [^2]: This is different from Next.js App Directory layouts and are best thought of as reusable React containers.
 
 [^3]: This takes advantage of Server Components by making it simple to specify the layout of choice in the markdown file and match against the `layouts` object which is then used to render the appropriate layout component.
+'''python
+import pandas as pd
+import matplotlib.pyplot as plt
+import json
+from js import fetch
+
+async def get_json(url):
+    resp = await fetch(url)
+    txt = await resp.text()
+    if not txt:
+        raise ValueError("Empty response from Census API")
+    return json.loads(txt)
+
+url = "https://api.census.gov/data/2024/acs/acs1/profile?get=NAME,DP04_0001E,DP04_0046E,DP04_0058PE,DP04_0134E&for=county:001&in=state:23&key=YOUR_KEY"
+data = await get_json(url)
+
+df = pd.DataFrame(data[1:], columns=data[0])
+
+metrics = {
+    "DP04_0001E": "Total housing units",
+    "DP04_0046E": "Occupied housing units",
+    "DP04_0058PE": "No vehicles available (%)",
+    "DP04_0134E": "Median gross rent",
+}
+
+row = df.iloc[0]
+
+chart_df = pd.DataFrame({
+    "metric": list(metrics.values()),
+    "value": [pd.to_numeric(row[c], errors="coerce") for c in metrics.keys()]
+}).sort_values("value", ascending=False).reset_index(drop=True)
+
+fig = plt.figure(figsize=(12, 7), layout="constrained")
+gs = fig.add_gridspec(2, 1, height_ratios=[1, 4])
+
+ax_table = fig.add_subplot(gs[0])
+ax = fig.add_subplot(gs[1])
+
+ax_table.axis("off")
+
+table_data = []
+for metric, value in zip(chart_df["metric"], chart_df["value"]):
+    if " (%)" in metric:
+        display = f"{value:.1f}%"
+    else:
+        display = f"{value:,.0f}"
+    table_data.append([metric, display])
+
+tbl = ax_table.table(
+    cellText=table_data,
+    colLabels=["Metric", "Value"],
+    cellLoc="left",
+    loc="center",
+    colWidths=[0.75, 0.25]
+)
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(10)
+tbl.scale(1, 1.4)
+
+for (r, c), cell in tbl.get_celld().items():
+    cell.set_edgecolor("#dddddd")
+    if r == 0:
+        cell.set_facecolor("#f2f2f2")
+        cell.set_text_props(weight="bold")
+
+bars = ax.barh(chart_df["metric"], chart_df["value"], color="#4C78A8")
+ax.invert_yaxis()
+
+ax.set_title("Androscoggin County Housing Profile")
+ax.set_xlabel("Value")
+ax.set_ylabel("")
+
+for bar, metric in zip(bars, chart_df["metric"]):
+    width = bar.get_width()
+    label = f"{width:.1f}%" if " (%)" in metric else f"{width:,.0f}"
+    ax.text(width, bar.get_y() + bar.get_height() / 2, label,
+            va="center", ha="left", fontsize=10)
+
+ax.spines["top"].set_visible(False)
+ax.spines["right"].set_visible(False)
+ax.grid(axis="x", linestyle="--", alpha=0.3)
+
+plt.show()
