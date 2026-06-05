@@ -6,55 +6,45 @@ draft: false
 summary: Example of a markdown file with code blocks and syntax highlighting
 ---
 
-## Data Visualization Workflow
+## Introduction
 
-## JupyterLite Notebook Code Cell Sections
+Write a short intro here.
 
+## Project Goal
 
-Import Dependencies 🐍
+Write what you were trying to accomplish here.
 
-Most projects rely on pre-written code libraries/modules whether written by the Notebook
-author or by a third-party. When importing from libraries, it is common to use aliases
-such as pd is used below as a shorthand for pandas.
+## Data Source
+
+Write where the data came from and why you used it.
+
+## JupyterLite Setup
+
+Write why you used JupyterLite or how it helps.
+
+## Python Code
 
 ```python
-# Dependency Imports
+# Load dependencies
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
 from js import fetch
-```
 
-Helper function(s) 🐍
-
-Helper function enable us to write clean human readable code.
-
-```python
-# Dependancies import
-import pandas as pd
-import matplotlib.pyplot as plt
-import json
-from js import fetch  # Pyodide-style fetch (browser-based Python)
-
-# Async helper to fetch JSON data from a URL
+# Fetch JSON data from a URL
 async def get_json(url):
-    resp = await fetch(url)              # Send HTTP request
-    txt = await resp.text()              # Get response as text
+    resp = await fetch(url)
+    txt = await resp.text()
     if not txt:
         raise ValueError("Empty response from Census API")
-    return json.loads(txt)               # Parse JSON into Python object
+    return json.loads(txt)
 
-# Census API endpoint (Androscoggin County, ME)
 url = "https://api.census.gov/data/2024/acs/acs1/profile?get=NAME,DP04_0001E,DP04_0046E,DP04_0058PE,DP04_0134E&for=county:001&in=state:23&key=YOUR_KEY"
-
-# Fetch API data
 data = await get_json(url)
 
-# Convert raw API response into a DataFrame
-# data[0] = column headers, data[1:] = actual rows
-df = pd.DataFrame(data[1:], columns=data[0])
+df = pd.DataFrame(data[1:], columns=data)
+row = df.iloc
 
-# Map Census variable codes to human-readable labels
 metrics = {
     "DP04_0001E": "Total housing units",
     "DP04_0046E": "Occupied housing units",
@@ -62,40 +52,30 @@ metrics = {
     "DP04_0134E": "Median gross rent",
 }
 
-# Extract the first (and only) row of data
-row = df.iloc[0]
-
-# Build a new DataFrame for charting
 chart_df = pd.DataFrame({
     "metric": list(metrics.values()),
     "value": [
-        pd.to_numeric(row[c], errors="coerce")  # Convert values to numbers
+        pd.to_numeric(row[c], errors="coerce")
         for c in metrics.keys()
     ]
 }).sort_values("value", ascending=False).reset_index(drop=True)
 
-# Create figure with two vertical sections (table + chart)
 fig = plt.figure(figsize=(12, 7), layout="constrained")
-gs = fig.add_gridspec(2, 1, height_ratios=[1, 4])
+gs = fig.add_gridspec(2, 1, height_ratios=)
 
-# Top: table axis
-ax_table = fig.add_subplot(gs[0])
-# Bottom: bar chart axis
-ax = fig.add_subplot(gs[1])
+ax_table = fig.add_subplot(gs)
+ax = fig.add_subplot(gs)
 
-# Hide axes for table display
 ax_table.axis("off")
 
-# Prepare table data with formatted values
 table_data = []
 for metric, value in zip(chart_df["metric"], chart_df["value"]):
     if " (%)" in metric:
-        display = f"{value:.1f}%"      # Format percentages
+        display = f"{value:.1f}%"
     else:
-        display = f"{value:,.0f}"      # Format numbers with commas
+        display = f"{value:,.0f}"
     table_data.append([metric, display])
 
-# Create table
 tbl = ax_table.table(
     cellText=table_data,
     colLabels=["Metric", "Value"],
@@ -104,30 +84,23 @@ tbl = ax_table.table(
     colWidths=[0.75, 0.25]
 )
 
-# Adjust table styling
 tbl.auto_set_font_size(False)
 tbl.set_fontsize(10)
 tbl.scale(1, 1.4)
 
-# Style table cells (header + borders)
 for (r, c), cell in tbl.get_celld().items():
     cell.set_edgecolor("#dddddd")
-    if r == 0:  # Header row
+    if r == 0:
         cell.set_facecolor("#f2f2f2")
         cell.set_text_props(weight="bold")
 
-# Create horizontal bar chart
 bars = ax.barh(chart_df["metric"], chart_df["value"], color="#4C78A8")
-
-# Highest value at the top
 ax.invert_yaxis()
 
-# Titles and labels
 ax.set_title("Androscoggin County Housing Profile")
 ax.set_xlabel("Value")
 ax.set_ylabel("")
 
-# Add value labels next to each bar
 for bar, metric in zip(bars, chart_df["metric"]):
     width = bar.get_width()
     label = f"{width:.1f}%" if " (%)" in metric else f"{width:,.0f}"
@@ -140,11 +113,9 @@ for bar, metric in zip(bars, chart_df["metric"]):
         fontsize=10
     )
 
-# Clean up chart appearance
 ax.spines["top"].set_visible(False)
 ax.spines["right"].set_visible(False)
 ax.grid(axis="x", linestyle="--", alpha=0.3)
 
-# Render the plot
 plt.show()
 ```
