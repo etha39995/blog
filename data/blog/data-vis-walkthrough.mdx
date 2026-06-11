@@ -6,116 +6,107 @@ draft: false
 summary: Example of a markdown file with code blocks and syntax highlighting
 ---
 
-## Introduction
+## Data Visualization Workflow
 
-The U.S. Census Bureau API data can be used in many ways. For this specific example I show data about housing conditions in the Androscoggin County through code. This example shows that with simple coding skills you are able to learn more about the area you live in!
+This notebook pulls housing data from the Census API and turns it into two charts. One chart shows raw housing values, and the other shows percentage-based housing measures.
 
-## Project Goal
+## Why visualize data? 🤔
 
-The goal of this project is to show the housing conditions in the Androscoggin County. I also show how you can turn simple code into a way to display data in a neat and simple, easy to read way. 
+Charts make it easier to compare values and notice patterns quickly. They turn a table of numbers into something easier to understand at a glance.
 
-## Data Source
+## JupyterLite Notebook Code Cell Sections
 
-All data for the graphs is retrieved through a U.S. census database API. It is able to show reliable and up to date information about your area quickly and in a simple manner. 
+### Import Dependencies 🐍
 
-## JupyterLite Setup
-
-I used JupyterLite to run and edit the code to make sure it works. It is a nice thing to use because it is simple, fast, and free.
-
-## Python Code
+These imports bring in the tools needed to load data, work with tables, and build charts.
 
 ```python
-# Load dependencies
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
 from js import fetch
+```
 
-# Fetch JSON data from a URL
+### Helper Function 🐍
+
+This function fetches JSON data from the Census API and converts it into a Python object.
+
+```python
 async def get_json(url):
     resp = await fetch(url)
     txt = await resp.text()
     if not txt:
         raise ValueError("Empty response from Census API")
     return json.loads(txt)
+```
 
-url = "https://api.census.gov/data/2024/acs/acs1/profile?get=NAME,DP04_0001E,DP04_0046E,DP04_0058PE,DP04_0134E&for=county:001&in=state:23&key=YOUR_KEY"
+### Pull and Prepare Data 🐍
+
+This code requests ACS housing data for Androscoggin County, then separates the values into counts and percentages so they can be charted properly.
+
+```python
+url = "https://api.census.gov/data/2024/acs/acs1/profile?get=NAME,DP04_0001E,DP04_0046E,DP04_0047PE,DP04_0058PE,DP04_0132E,DP04_0134E,DP04_0137PE&for=county:001&in=state:23&key=YOUR_KEY"
 data = await get_json(url)
 
 df = pd.DataFrame(data[1:], columns=data)
 row = df.iloc
 
-metrics = {
+count_metrics = {
     "DP04_0001E": "Total housing units",
     "DP04_0046E": "Occupied housing units",
-    "DP04_0058PE": "No vehicles available (%)",
+    "DP04_0132E": "Median selected monthly owner costs",
     "DP04_0134E": "Median gross rent",
 }
 
-chart_df = pd.DataFrame({
-    "metric": list(metrics.values()),
-    "value": [
-        pd.to_numeric(row[c], errors="coerce")
-        for c in metrics.keys()
-    ]
+percent_metrics = {
+    "DP04_0047PE": "Vacancy rate (%)",
+    "DP04_0058PE": "No vehicles available (%)",
+    "DP04_0137PE": "Rent over 30% of income (%)",
+}
+
+count_df = pd.DataFrame({
+    "metric": list(count_metrics.values()),
+    "value": [pd.to_numeric(row[c], errors="coerce") for c in count_metrics.keys()]
 }).sort_values("value", ascending=False).reset_index(drop=True)
 
-fig = plt.figure(figsize=(12, 7), layout="constrained")
-gs = fig.add_gridspec(2, 1, height_ratios=)
+percent_df = pd.DataFrame({
+    "metric": list(percent_metrics.values()),
+    "value": [pd.to_numeric(row[c], errors="coerce") for c in percent_metrics.keys()]
+}).sort_values("value", ascending=False).reset_index(drop=True)
+```
 
-ax_table = fig.add_subplot(gs)
-ax = fig.add_subplot(gs)
+### Make the Charts 📊
 
-ax_table.axis("off")
+The first chart shows the housing counts, while the second chart focuses on percentages and uses a 0 to 100 scale.
 
-table_data = []
-for metric, value in zip(chart_df["metric"], chart_df["value"]):
-    if " (%)" in metric:
-        display = f"{value:.1f}%"
-    else:
-        display = f"{value:,.0f}"
-    table_data.append([metric, display])
+```python
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), layout="constrained")
 
-tbl = ax_table.table(
-    cellText=table_data,
-    colLabels=["Metric", "Value"],
-    cellLoc="left",
-    loc="center",
-    colWidths=[0.75, 0.25]
-)
-
-tbl.auto_set_font_size(False)
-tbl.set_fontsize(10)
-tbl.scale(1, 1.4)
-
-for (r, c), cell in tbl.get_celld().items():
-    cell.set_edgecolor("#dddddd")
-    if r == 0:
-        cell.set_facecolor("#f2f2f2")
-        cell.set_text_props(weight="bold")
-
-bars = ax.barh(chart_df["metric"], chart_df["value"], color="#4C78A8")
-ax.invert_yaxis()
-
-ax.set_title("Androscoggin County Housing Profile")
-ax.set_xlabel("Value")
-ax.set_ylabel("")
-
-for bar, metric in zip(bars, chart_df["metric"]):
+bars1 = ax1.barh(count_df["metric"], count_df["value"], color="#4C78A8")
+ax1.invert_yaxis()
+ax1.set_title("Androscoggin County Housing Profile - Counts")
+ax1.set_xlabel("Value")
+ax1.set_ylabel("")
+for bar in bars1:
     width = bar.get_width()
-    label = f"{width:.1f}%" if " (%)" in metric else f"{width:,.0f}"
-    ax.text(
-        width,
-        bar.get_y() + bar.get_height() / 2,
-        label,
-        va="center",
-        ha="left",
-        fontsize=10
-    )
+    ax1.text(width, bar.get_y() + bar.get_height() / 2, f"{width:,.0f}",
+             va="center", ha="left", fontsize=10)
 
-ax.spines["top"].set_visible(False)
-ax.spines["right"].set_visible(False)
-ax.grid(axis="x", linestyle="--", alpha=0.3)
+bars2 = ax2.barh(percent_df["metric"], percent_df["value"], color="#F58518")
+ax2.invert_yaxis()
+ax2.set_title("Androscoggin County Housing Profile - Percentages")
+ax2.set_xlabel("Percent")
+ax2.set_ylabel("")
+ax2.set_xlim(0, 100)
+ax2.set_xticks()[1][2]
+
+for bar in bars2:
+    width = bar.get_width()
+    ax2.text(width, bar.get_y() + bar.get_height() / 2, f"{width:.1f}%",
+             va="center", ha="left", fontsize=10)
 
 plt.show()
 ```
+
+![Chart of ACS Housing Profile](/static/images/data_vis.png "ACS Housing Profile Chart")
+![Chart of ACS Housing Percents](/static/images/data_vis_perc.png "ACS Housing Profile Chart (%)")
